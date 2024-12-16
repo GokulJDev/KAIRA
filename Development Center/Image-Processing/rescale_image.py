@@ -3,49 +3,61 @@ import os
 import numpy as np
 from PIL import Image
 
-example_image_path = (
-    os.path.dirname(os.path.realpath(__file__)) + "/../../Images/Examples/example2.png"
-)
+# Define image path
+example_image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../Images/Examples/example2.png")
 
-scalefactor = 2.5  # downscale < 1 < upscale
-
+# Scaling factor (upscale or downscale)
+scalefactor = 2.5  # < 1 for downscale, > 1 for upscale
 
 def pil_rescale_image(image, factor):
-
+    """
+    Rescale image using Pillow.
+    :param image: Pillow Image object
+    :param factor: scaling factor (1 means no change)
+    :return: Resized Pillow Image object
+    """
     width, height = image.size
-    d = image.resize((int(width * factor), int(height * factor)), resample=Image.BOX)
-
-    return d
-
+    resized_image = image.resize((int(width * factor), int(height * factor)), resample=Image.BOX)
+    return resized_image
 
 def cv2_rescale_image(image, factor):
+    """
+    Rescale image using OpenCV.
+    :param image: OpenCV image (numpy array)
+    :param factor: scaling factor (1 means no change)
+    :return: Resized OpenCV image (numpy array)
+    """
     return cv2.resize(image, None, fx=factor, fy=factor)
 
-
 def pil_to_cv2(image):
+    """
+    Convert Pillow image to OpenCV image (numpy array).
+    :param image: Pillow Image object
+    :return: OpenCV image (numpy array)
+    """
     return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
-
 def main():
-    # Pil read
-    c = Image.open(example_image_path)
+    # Open the image using PIL
+    pil_image = Image.open(example_image_path)
 
-    # for cv2
-    d = cv2_rescale_image(pil_to_cv2(c), scalefactor)
+    # Rescale image using OpenCV
+    cv2_resized = cv2_rescale_image(pil_to_cv2(pil_image), scalefactor)
 
-    # for pil
-    d2 = pil_rescale_image(c, scalefactor)
-    d2 = pil_to_cv2(d2)
+    # Rescale image using Pillow
+    pil_resized = pil_rescale_image(pil_image, scalefactor)
+    pil_resized_cv2 = pil_to_cv2(pil_resized)  # Convert resized Pillow image to OpenCV format
 
-    # Show result
-    cv2.imshow("origin", pil_to_cv2(c))
-    cv2.imshow("reshape-cv2", d)
-    cv2.imshow("reshape-pil", d2)
+    # Display the original, OpenCV resized, and Pillow resized images
+    cv2.imshow("Original Image", pil_to_cv2(pil_image))
+    cv2.imshow("Resized with OpenCV", cv2_resized)
+    cv2.imshow("Resized with Pillow", pil_resized_cv2)
     cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-    # Save to file
-    # cv2.imwrite(os.path.dirname(os.path.realpath(__file__))+"/rescaled.png",pil_to_cv2(d2))
-
+    # Optionally save the resized images
+    # cv2.imwrite(os.path.join(os.path.dirname(os.path.realpath(__file__)), "rescaled_cv2.png"), cv2_resized)
+    # cv2.imwrite(os.path.join(os.path.dirname(os.path.realpath(__file__)), "rescaled_pil.png"), pil_resized_cv2)
 
 if __name__ == "__main__":
     main()

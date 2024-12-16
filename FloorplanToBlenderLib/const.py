@@ -1,10 +1,11 @@
 from enum import Enum
+import os
 
 """
 Const
-This file contains contants to remove "magic" numbers and strings.
+This file contains constants to remove "magic" numbers and strings.
 
-Use this file to customize all strings in program easily from one place.
+Use this file to customize all strings in the program easily from one place.
 Be careful changing these.
 
 FloorplanToBlender3d
@@ -12,13 +13,14 @@ Copyright (C) 2022 Daniel Westberg
 """
 
 # Main script
+BLEND_FORMAT = ".blend"
 SUPPORTED_BLENDER_FORMATS = (
     ".obj",
     ".x3d",
     ".gltf",
     ".mtl",
     ".webm",
-    ".blend",
+    BLEND_FORMAT,
     ".vrml",
     ".usd",
     ".udim",
@@ -28,7 +30,7 @@ SUPPORTED_BLENDER_FORMATS = (
     ".fbx",
     ".3ds",
 )
-BASE_FORMAT = ".blend"
+BASE_FORMAT = BLEND_FORMAT
 
 
 class MODE(Enum):
@@ -48,16 +50,28 @@ WALL_HEIGHT = 1
 PIXEL_TO_3D_SCALE = 100
 
 # Paths to models
-DOOR_MODEL = "Images/Models/Doors/door.png"  # TODO: make dynamic folder solution, to add more doors!
+DOOR_MODEL = "Images/Models/Doors/door.png"
+DOOR_MODELS = [
+    "Images/Models/Doors/door1.png",  # Door model 1
+    "Images/Models/Doors/door2.png",  # Door model 2
+    "Images/Models/Doors/door3.png",  # Door model 3
+]
 DOOR_WIDTH = 5
 
+WINDOW_MODELS = [
+    "Images/Models/Windows/window1.png",  # Window model 1
+    "Images/Models/Windows/window2.png",  # Window model 2
+    "Images/Models/Windows/window3.png",  # Window model 3
+    "Images/Models/Windows/window4.png",  # Window model 4
+]
+
 # Data creation
-ROOM_FLOOR_DISTANCE = 0.001  # place room slightly above floor
-WINDOW_MIN_MAX_GAP = [0.25, 0.75]  # change window gap size
+ROOM_FLOOR_DISTANCE = 0.001  # Place room slightly above the floor
+WINDOW_MIN_MAX_GAP = [0.25, 0.75]  # Change window gap size
 
 # Detection
 # These are mostly calibrated variables that might need some changes.
-# these might be intresting to temper with, but might give unexpected results!
+# These might be interesting to temper with, but might give unexpected results!
 
 # Box detection
 PRECISE_BOXES_ACCURACY = 0.001
@@ -102,7 +116,7 @@ DETAILS_CORNERS_THRESHOLD = 0.01
 DETAILS_CLOSING_MAX_LENGTH = 130
 DETAILS_GAP_IN_WALL_THRESHOLD = [10, 5000]
 
-# Imageing
+# Imaging
 IMAGE_H = 10
 IMAGE_HCOLOR = 10
 IMAGE_TEMPLATE_SIZE = 7
@@ -120,7 +134,7 @@ SYSTEM_CONFIG_FILE_NAME = "./Configs/system.ini"
 IMAGE_DEFAULT_CONFIG_FILE_NAME = "./Configs/default.ini"
 
 # CONFIG field/key names
-# These values are used as backup incase config.ini can't be found.
+# These values are used as backup in case config.ini can't be found.
 # "STR" indicates that these are keys
 STR_CALIBRATION_IMAGE_PATH = "calibration_image_path"
 STR_WALL_SIZE_CALIBRATION = "wall_size_calibration"
@@ -157,7 +171,7 @@ FEATURES = "FEATURES"
 # CONFIG values
 # These values will be set in config file if config.ini is removed!
 DEFAULT_CALIBRATION_IMAGE_PATH = "Images/Calibrations/wallcalibration.png"
-DEFAULT_IMAGE_PATH = "Images/Examples/example.png"
+DEFAULT_OUT_FORMAT = BLEND_FORMAT
 DEFAULT_OUT_FORMAT = ".blend"
 DEFAULT_OVERWRITE_DATA = "False"
 MAC_DEFAULT_BLENDER_INSTALL_PATH = "/Applications/Blender.app/Contents/MacOS/Blender"
@@ -189,3 +203,4 @@ DOOR_VERTICAL_FACES = "door_vertical_faces"
 DOOR_HORIZONTAL_VERTS = "door_horizontal_verts"
 DOOR_HORIZONTAL_FACES = "door_horizontal_faces"
 SAVE_DATA_FORMAT = ".txt"
+

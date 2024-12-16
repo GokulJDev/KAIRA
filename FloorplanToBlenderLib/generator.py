@@ -169,7 +169,7 @@ class Room(Generator):
     def generate(self, gray, info=False):
         gray = detect.wall_filter(gray)
         gray = ~gray
-        rooms, colored_rooms = detect.find_rooms(gray.copy())
+        _, colored_rooms = detect.find_rooms(gray.copy())
         gray_rooms = cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY)
 
         # get box positions for rooms
@@ -241,6 +241,30 @@ class Door(Generator):
                     dist = distance
         return (int(best_point[0]), int(best_point[1]))
 
+    def create_door_contour(self, closest_box_point, space_point, normal_line):
+        """
+        Generate the door contour using closest box point and space point
+        """
+        x1 = closest_box_point[0] + normal_line[1] * const.DOOR_WIDTH
+        y1 = closest_box_point[1] - normal_line[0] * const.DOOR_WIDTH
+
+        x2 = closest_box_point[0] - normal_line[1] * const.DOOR_WIDTH
+        y2 = closest_box_point[1] + normal_line[0] * const.DOOR_WIDTH
+
+        x4 = space_point[0] + normal_line[1] * const.DOOR_WIDTH
+        y4 = space_point[1] - normal_line[0] * const.DOOR_WIDTH
+
+        x3 = space_point[0] - normal_line[1] * const.DOOR_WIDTH
+        y3 = space_point[1] + normal_line[0] * const.DOOR_WIDTH
+
+        c1 = [int(x1), int(y1)]
+        c2 = [int(x2), int(y2)]
+        c3 = [int(x3), int(y3)]
+        c4 = [int(x4), int(y4)]
+
+        door_contour = np.array([[c1], [c2], [c3], [c4]], dtype=np.int32)
+        return door_contour
+
     def generate(self, gray, info=False):
 
         doors = detect.doors(self.image_path, self.scale_factor)
@@ -268,25 +292,8 @@ class Door(Generator):
             # Normalize point
             normal_line = calculate.normalize_2d(normal_line)
 
-            # Create door contour
-            x1 = closest_box_point[0] + normal_line[1] * const.DOOR_WIDTH
-            y1 = closest_box_point[1] - normal_line[0] * const.DOOR_WIDTH
-
-            x2 = closest_box_point[0] - normal_line[1] * const.DOOR_WIDTH
-            y2 = closest_box_point[1] + normal_line[0] * const.DOOR_WIDTH
-
-            x4 = space_point[0] + normal_line[1] * const.DOOR_WIDTH
-            y4 = space_point[1] - normal_line[0] * const.DOOR_WIDTH
-
-            x3 = space_point[0] - normal_line[1] * const.DOOR_WIDTH
-            y3 = space_point[1] + normal_line[0] * const.DOOR_WIDTH
-
-            c1 = [int(x1), int(y1)]
-            c2 = [int(x2), int(y2)]
-            c3 = [int(x3), int(y3)]
-            c4 = [int(x4), int(y4)]
-
-            door_contour = np.array([[c1], [c2], [c3], [c4]], dtype=np.int32)
+            # Create door contour using the method
+            door_contour = self.create_door_contour(closest_box_point, space_point, normal_line)
             door_contours.append(door_contour)
 
         if const.DEBUG_DOOR:
@@ -295,7 +302,6 @@ class Door(Generator):
             draw.image(img)
 
         # Create verts for door
-
         self.verts, self.faces, door_amount = transform.create_nx4_verts_and_faces(
             boxes=door_contours,
             height=self.height,
@@ -318,16 +324,14 @@ class Door(Generator):
             ground_height=const.WALL_GROUND,
         )
 
-        # One solution to get data to blender is to write and read from file.
         IO.save_to_file(self.path + "door_horizontal_verts", self.verts, info)
         IO.save_to_file(self.path + "door_horizontal_faces", self.faces, info)
 
         return self.get_shape(self.verts)
 
-
 class Window(Generator):
-    # TODO: also fill small gaps between windows and walls
-    # TODO: also add verts for filling gaps
+    '''# TODO: also fill small gaps between windows and walls
+    # TODO: also add verts for filling gaps'''
 
     def __init__(self, gray, path, image_path, scale_factor, scale, info=False):
         self.image_path = image_path
@@ -339,14 +343,14 @@ class Window(Generator):
         windows = detect.windows(self.image_path, self.scale_factor)
 
         # Create verts for window, vertical
-        v, self.faces, window_amount1 = transform.create_nx4_verts_and_faces(
+        v, self.faces, _ = transform.create_nx4_verts_and_faces(
             boxes=windows,
             height=const.WINDOW_MIN_MAX_GAP[0],
             scale=self.scale,
             pixelscale=self.pixelscale,
             ground=0,
         )  # create low piece
-        v2, self.faces, window_amount2 = transform.create_nx4_verts_and_faces(
+        v2, self.faces, _ = transform.create_nx4_verts_and_faces(
             boxes=windows,
             height=self.height,
             scale=self.scale,

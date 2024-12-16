@@ -1,98 +1,125 @@
 """
-Small demo program of detections
-If someone want to just use the same detections
+Small demo program for floorplan detections
+Demonstrates wall, floor, room, and detail detection from a floorplan image
 """
 
-import pytest
 import cv2
 import numpy as np
 import sys
 import os
 
-floorplan_lib_path = os.path.dirname(os.path.realpath(__file__)) + "/../../"
-example_image_path = (
-    os.path.dirname(os.path.realpath(__file__)) + "/../../Images/Examples/example.png"
+# Define paths to required libraries and example image
+floorplan_lib_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+example_image_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../Images/Examples/example.png")
 )
 
-
+# Import the FloorplanToBlenderLib detection library
 try:
     sys.path.insert(0, floorplan_lib_path)
-    from FloorplanToBlenderLib import *  # floorplan to blender lib
-except ImportError:
-    from FloorplanToBlenderLib import *  # floorplan to blender lib
+    from FloorplanToBlenderLib import detect
+except ImportError as e:
+    print("Error importing FloorplanToBlenderLib:", e)
+    sys.exit(1)
 
-from subprocess import check_output
 
-
-def test(path):
+def test_floorplan_detections(image_path):
     """
-    Receive image, convert
-    This function test functions used to create floor and walls
+    Perform detections for walls, floors, rooms, and details from a floorplan image.
+
+    Args:
+        image_path (str): Path to the floorplan image.
+
+    Displays:
+        - Detection results using OpenCV windows.
     """
-    # Read floorplan image
-    img = cv2.imread(path)
-    image = img
-    # grayscale image
+
+    # Step 1: Load the input image
+    img = cv2.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(f"Error: Image not found at {image_path}")
+
+    # Make a copy for further use
+    original_image = img.copy()
+
+    # Step 2: Convert the image to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Resulting image
-    height, width, channels = img.shape
-    blank_image = np.zeros(
-        (height, width, 3), np.uint8
-    )  # output image same size as original
+    # Create a blank output image of the same size as the original
+    height, width, _ = img.shape
+    blank_image = np.zeros((height, width, 3), np.uint8)
 
-    # create wall image (filter out small objects from image)
-    wall_img = detect.wall_filter(gray)
-    wall_temp = wall_img
-    """
-    Detect Wall
-    """
-    # detect walls
-    boxes, img = detect.precise_boxes(wall_img, blank_image)
+    # -----------------------------------------
+    # Wall Detection
+    # -----------------------------------------
+    print("Detecting walls...")
+    wall_img = detect.wall_filter(gray)  # Filter out small objects to detect walls
+    _, wall_detection_image = detect.precise_boxes(
+        wall_img, blank_image.copy(), color=(0, 0, 255)
+    )  # Mark walls with red color
 
-    """
-    Detect Floor
-    """
-    # detect outer Contours (simple floor or roof solution)
-    contour, img = detect.outer_contours(gray, blank_image, color=(255, 0, 0))
+    # -----------------------------------------
+    # Floor Detection
+    # -----------------------------------------
+    print("Detecting floors...")
+    _, floor_detection_image = detect.outer_contours(
+        gray, blank_image.copy(), color=(255, 0, 0)
+    )  # Detect outer contours (floor/roof) in blue
 
-    # grayscale
-    gray = ~wall_temp
-
-    """
-    Detect rooms
-    """
-    rooms, colored_rooms = detect.find_rooms(
-        gray.copy(),
+    # -----------------------------------------
+    # Room Detection
+    # -----------------------------------------
+    print("Detecting rooms...")
+    gray_inverted = ~wall_img  # Invert the wall image for room detection
+    _, colored_rooms = detect.find_rooms(
+        gray_inverted.copy(),
         noise_removal_threshold=50,
         corners_threshold=0.01,
         room_closing_max_length=130,
         gap_in_wall_min_threshold=5000,
     )
-    gray_rooms = cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY)
-    boxes, blank_image = detect.precise_boxes(
-        gray_rooms, blank_image, color=(0, 100, 200)
-    )
+    _, room_detection_image = detect.precise_boxes(
+        cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY),
+        blank_image.copy(),
+        color=(0, 100, 200),
+    )  # Rooms marked with light blue
 
-    """
-    Detect details
-    """
-    doors, colored_doors = detect.find_details(
-        gray.copy(),
+    # -----------------------------------------
+    # Detail Detection (Doors, etc.)
+    # -----------------------------------------
+    print("Detecting details...")
+    _, colored_doors = detect.find_details(
+        gray_inverted.copy(),
         noise_removal_threshold=50,
         corners_threshold=0.01,
         room_closing_max_length=130,
         gap_in_wall_max_threshold=5000,
         gap_in_wall_min_threshold=10,
     )
-    gray_details = cv2.cvtColor(colored_doors, cv2.COLOR_BGR2GRAY)
-    boxes, blank_image = detect.precise_boxes(
-        gray_details, blank_image, color=(0, 200, 100)
-    )
+    _, details_detection_image = detect.precise_boxes(
+        cv2.cvtColor(colored_doors, cv2.COLOR_BGR2GRAY),
+        blank_image.copy(),
+        color=(0, 200, 100),
+    )  # Details marked with green
 
-    cv2.imshow("detection", blank_image)
+    # -----------------------------------------
+    # Display Results
+    # -----------------------------------------
+    print("Displaying results...")
+    cv2.imshow("Original Image", original_image)
+    cv2.imshow("Wall Detection", wall_detection_image)
+    cv2.imshow("Floor Detection", floor_detection_image)
+    cv2.imshow("Room Detection", room_detection_image)
+    cv2.imshow("Detail Detection", details_detection_image)
+
+    # Wait for user input and clean up
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
 
-test(example_image_path)
+if __name__ == "__main__":
+    # Run the test function
+    try:
+        test_floorplan_detections(example_image_path)
+    except Exception as e:
+        print("An error occurred:", e)

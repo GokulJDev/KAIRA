@@ -14,11 +14,12 @@ This file contains functions for handling config files.
 FloorplanToBlender3d
 Copyright (C) 2022 Daniel Westberg
 """
+'''
 # TODO: settings for coloring all objects
-# TODO: add config security check, before start up!
-# TODO: safe read, use this func instead of repeating code everywhere!
+# TODO: add config security check, before startup!
+# TODO: safe read, use this function instead of repeating code everywhere!
 # TODO: add blender path addition to system.ini
-
+'''
 
 def read_calibration(floorplan):
     """
@@ -29,23 +30,22 @@ def read_calibration(floorplan):
     return floorplan.wall_size_calibration
 
 
-def create_image_scale_calibration(floorplan, got_settings=False):
+def create_image_scale_calibration(floorplan):
     """
     Create and save image size calibrations
     """
-
     calibration_img = cv2.imread(floorplan.calibration_image_path)
     return calculate.wall_width_average(calibration_img)
 
 
 def generate_file():
     """
-    Generate new config file, if no exist
+    Generate new config file, if not exist
     """
-    # create System Settings
+    # Create System Settings
     conf = configparser.ConfigParser()
     conf["SYSTEM"] = {
-        const.STR_OVERWRITE_DATA: const.DEFAULT_OVERWRITE_DATA,  # TODO: implement!
+        const.STR_OVERWRITE_DATA: const.DEFAULT_OVERWRITE_DATA,  
         const.STR_BLENDER_INSTALL_PATH: IO.get_blender_os_path(),
         const.STR_OUT_FORMAT: json.dumps(const.DEFAULT_OUT_FORMAT),
     }
@@ -54,7 +54,7 @@ def generate_file():
     with open(const.SYSTEM_CONFIG_FILE_NAME, "w") as configfile:
         conf.write(configfile)
 
-    # create Default floorplan Settings
+    # Create Default floorplan Settings
     conf = configparser.ConfigParser()
     conf["IMAGE"] = {
         const.STR_IMAGE_PATH: json.dumps(const.DEFAULT_IMAGE_PATH),
@@ -98,14 +98,16 @@ def show(conf):
     """
     Visualize all config settings
     """
-    for key in conf:
-        print(key, conf[key])
+    for section in conf.sections():
+        print(f"[{section}]")
+        for key, value in conf.items(section):
+            print(f"{key}: {value}")
+        print()
 
 
 def update(path, key, config):
     """
-    Update a config category
-    With a config object
+    Update a config category with a config object
     """
     conf = get_all(path)
     conf[key] = config
@@ -115,7 +117,7 @@ def update(path, key, config):
 
 def file_exist(name):
     """
-    Check if file exist
+    Check if file exists
     @Param name
     @Return boolean
     """
@@ -124,7 +126,7 @@ def file_exist(name):
 
 def get_all(path):
     """
-    Read and return values
+    Read and return all values from the config
     @Return default values
     """
     return get(path)
@@ -132,27 +134,31 @@ def get_all(path):
 
 def get(config_path, *args):
     """
-    Read and return values
+    Read and return specific values from the config
     @Return default values
     """
     conf = configparser.ConfigParser()
 
     if not file_exist(config_path):
         generate_file()
+    
     conf.read(config_path)
 
     for key in args:
         conf = conf[key]
 
-    if args is None:
-        return conf
-    else:
-        return conf
+    return conf
 
 
 def get_default_image_path():
+    """
+    Get the default image path from the config
+    """
     return get(const.IMAGE_DEFAULT_CONFIG_FILE_NAME, "IMAGE", const.STR_IMAGE_PATH)
 
 
 def get_default_blender_installation_path():
+    """
+    Get the default Blender installation path from the config
+    """
     return get(const.SYSTEM_CONFIG_FILE_NAME, "SYSTEM", const.STR_BLENDER_INSTALL_PATH)

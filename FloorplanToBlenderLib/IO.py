@@ -13,19 +13,22 @@ from . import config
 
 """
 IO
-This file contains functions for handling files.
+This file contains functions for handling files, reading and saving floorplan data, 
+and ensuring the necessary software (like Blender) is correctly installed.
+These functions are integral to automating the workflow for generating Blender-ready 3D models from floorplans.
 
 FloorplanToBlender3d
 Copyright (C) 2022 Daniel Westberg
 """
 
-
 def find_reuseable_data(image_path, path):
     """
-    Checks if floorplan data already exists and can be reused
-    Then return the path to data
-    @Param path, path to image
-    @Return path to image data, else return None
+    Check if the floorplan data for a given image already exists at the specified path.
+    If it does, returns the path to the existing data and its shape. Otherwise, returns None.
+
+    @param image_path: Path to the image for which data might already exist.
+    @param path: Directory path to search for the existing data.
+    @return: Tuple (path to existing data, shape) if found, otherwise (None, None).
     """
     for _, dirs, _ in os.walk(path):
         for dir in dirs:
@@ -42,7 +45,11 @@ def find_reuseable_data(image_path, path):
 
 def find_files(filename, search_path):
     """
-    Find filename in root search path
+    Find a specific file in the directory and its subdirectories.
+
+    @param filename: The name of the file to search for.
+    @param search_path: The root directory to start searching from.
+    @return: Full path to the file if found, else None.
     """
     for root, _, files in os.walk(search_path):
         if filename in files:
@@ -52,27 +59,27 @@ def find_files(filename, search_path):
 
 def blender_installed():
     """
-    Find path to blender installation
-    Might be error prune, tested on ubuntu and windows
+    Check if Blender is installed on the system.
+    Returns the path to the Blender executable if found, otherwise returns None.
+
+    @return: Path to the Blender executable or None if not installed.
     """
     if pf == "linux" or pf == "linux2":
-        # linux
-        return find_files("blender", "/")
+        return find_files("blender", "/")  # For Linux-based systems
     elif pf == "darwin":
-        # OS X
-        return find_files("blender", "/")  # TODO: this need to be tested!
+        return find_files("blender", "/")  # For macOS (need testing)
     elif pf == "win32":
-        # Windows
-        return find_files("blender.exe", "C:\\")
+        return find_files("blender.exe", "C:\\")  # For Windows
 
 
 def get_blender_os_path():
+    """
+    Get the default Blender installation path based on the current operating system.
+    
+    @return: Default path for Blender installation on the current OS.
+    """
     _platform = platform.system()
-    if (
-        _platform.lower() == "linux"
-        or _platform.lower() == "linux2"
-        or _platform.lower() == "ubuntu"
-    ):
+    if _platform.lower() in ["linux", "linux2", "ubuntu"]:
         return const.LINUX_DEFAULT_BLENDER_INSTALL_PATH
     elif _platform.lower() == "darwin":
         return const.MAC_DEFAULT_BLENDER_INSTALL_PATH
@@ -82,9 +89,14 @@ def get_blender_os_path():
 
 def read_image(path, floorplan=None):
     """
-    Read image, resize/rescale and return with grayscale
+    Read the image from the given path, apply resizing and noise reduction if needed.
+    Returns the processed image, grayscale version, and scale factor.
+    
+    @param path: Path to the image file.
+    @param floorplan: Optional floorplan object containing settings like noise removal and rescaling.
+    @return: Processed image, grayscale image, and the scale factor used.
     """
-    # Read floorplan image
+    # Read the image using OpenCV
     img = cv2.imread(path)
     if img is None:
         print(f"ERROR: Image {path} could not be read by OpenCV library.")
@@ -92,17 +104,18 @@ def read_image(path, floorplan=None):
 
     scale_factor = 1
     if floorplan is not None:
+        # Apply noise removal if needed
         if floorplan.remove_noise:
             img = image.denoising(img)
+        # Rescale the image if required
         if floorplan.rescale_image:
-
             calibrations = config.read_calibration(floorplan)
-            floorplan.wall_size_calibration = calibrations  # Store for debug
+            floorplan.wall_size_calibration = calibrations  # Store for debugging
             scale_factor = image.detect_wall_rescale(float(calibrations), img)
             if scale_factor is None:
                 print(
-                    "WARNING: Auto rescale failed due to non good walls found in image."
-                    + "If rescale still is needed, please rescale manually."
+                    "WARNING: Auto rescale failed due to non-good walls found in image."
+                    + "If rescale is still needed, please rescale manually."
                 )
                 scale_factor = 1
             else:
@@ -112,33 +125,44 @@ def read_image(path, floorplan=None):
 
 
 def readlines_file(path):
-    res = []
+    """
+    Read all lines from a text file and return them as a list.
+
+    @param path: The path to the text file.
+    @return: List of lines read from the file.
+    """
     with open(path, "r") as f:
-        res = f.readlines()
-    return res
+        return f.readlines()
 
 
-def ndarrayJsonDumps(obj):
+def ndarray_json_dumps(obj):
+    """
+    Convert numpy arrays to a format that can be serialized into JSON.
+    
+    @param obj: The object to serialize, typically a numpy array.
+    @return: The JSON-serializable version of the object.
+    """
     if type(obj).__module__ == np.__name__:
         if isinstance(obj, np.ndarray):
-            return obj.tolist()
+            return obj.tolist()  # Convert numpy array to a regular list
         else:
-            return obj.item()
+            return obj.item()  # Convert single-value numpy objects
     raise TypeError("Unknown type:", type(obj))
 
 
 def save_to_file(file_path, data, show=True):
     """
-    Save to file
-    Saves our resulting array as json in file.
-    @Param file_path, path to outputfile
-    @Param data, data to write to file
+    Save the data to a JSON file at the specified file path.
+    
+    @param file_path: Path to save the data.
+    @param data: Data to write to the file.
+    @param show: Whether to print a success message.
     """
     with open(file_path + const.SAVE_DATA_FORMAT, "w") as f:
         try:
             f.write(json.dumps(data))
         except TypeError:
-            f.write(json.dumps(data, default=ndarrayJsonDumps))  # little haxy
+            f.write(json.dumps(data, default=ndarray_json_dumps))  # Handle numpy arrays
 
     if show:
         print("Created file : " + file_path + const.SAVE_DATA_FORMAT)
@@ -146,35 +170,35 @@ def save_to_file(file_path, data, show=True):
 
 def read_from_file(file_path):
     """
-    Read from file
-    read verts data from file
-    @Param file_path, path to file
-    @Return data
+    Read data from a JSON file at the specified path.
+
+    @param file_path: Path to the file to read from.
+    @return: The data read from the file.
     """
-    # Now read the file back into a Python list object
     with open(file_path + const.SAVE_DATA_FORMAT, "r") as f:
-        data = json.loads(f.read())
-    return data
+        return json.loads(f.read())
 
 
 def clean_data_folder(folder):
     """
-    Remove old data files
-    Don't want to fill memory
-    @Param folder, path to data folder
+    Delete all files and subdirectories in the specified folder to clean up old data.
+
+    @param folder: Path to the folder to clean.
     """
     for root, dirs, files in os.walk(folder):
         for f in files:
-            os.unlink(os.path.join(root, f))
+            os.unlink(os.path.join(root, f))  # Delete files
         for d in dirs:
-            shutil.rmtree(os.path.join(root, d))
+            shutil.rmtree(os.path.join(root, d))  # Delete subdirectories
 
 
 def create_new_floorplan_path(path):
     """
-    Creates next free name to floorplan data
-    @Param path, path to floorplan
-    @Return end path
+    Create a new folder for floorplan data, ensuring a unique folder name.
+    It checks for existing directories and creates the next available one.
+
+    @param path: The base path to create the new folder in.
+    @return: The path to the newly created directory.
     """
     res = 0
     for _, dirs, _ in os.walk(path):
@@ -190,31 +214,37 @@ def create_new_floorplan_path(path):
 
     res = path + str(res) + "/"
     if not os.path.exists(res):
-        os.makedirs(res)
+        os.makedirs(res)  # Create the new directory
     return res
 
 
 def get_current_path():
     """
-    Get path to this programs path
-    @Return path to working directory
+    Get the current working directory of the program.
+
+    @return: The path to the current working directory.
     """
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    return dir_path
+    return os.path.dirname(os.path.realpath(__file__))
 
 
 def find_program_path(name):
     """
-    Find program path
-    @Param name, name of program to find
+    Find the installation path of a program by its name using the system's `which` command.
+
+    @param name: The name of the program (e.g., "blender").
+    @return: The path to the program if found, otherwise None.
     """
     return which(name)
 
 
 def get_next_target_base_name(target_base, target_path):
     """
-    Generate appropriate next target name
-    If blender target file already exist, get next id
+    Generate the next available target name by checking if a file with the same base name exists.
+    If it exists, it increments the name with a number (e.g., target_base1, target_base2, etc.).
+
+    @param target_base: The base name of the target file.
+    @param target_path: The directory where the file will be saved.
+    @return: The next available target base name.
     """
     fid = 0
     if os.path.isfile("." + target_path):
@@ -222,6 +252,6 @@ def get_next_target_base_name(target_base, target_path):
             filename = os.fsdecode(file)
             if filename.endswith(const.BASE_FORMAT):
                 fid += 1
-        target_base += str(fid)
+        target_base += str(fid)  # Increment the target base name with the next number
 
     return target_base
